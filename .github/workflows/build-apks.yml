@@ -61,7 +61,13 @@ jobs:
           channel: stable
           flutter-version: "3.41.0"
           cache: true
-
+          
+      - name: Regenerate Android project
+        working-directory: ${{ matrix.workdir }}
+        run: |
+          rm -rf android
+          flutter create --platforms=android .
+          
       - name: Install dependencies
         working-directory: ${{ matrix.workdir }}
         run: flutter pub get
