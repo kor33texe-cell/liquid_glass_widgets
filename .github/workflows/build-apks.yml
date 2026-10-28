@@ -1,0 +1,84 @@
+
+name: Build Liquid Glass Android APKs
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.app_name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app_name: Widget Showcase
+            workdir: example
+            target: lib/main.dart
+            artifact: widget-showcase-apk
+            filename: widget_showcase.apk
+
+          - app_name: Apple Messages
+            workdir: example
+            target: lib/apple_messages/apple_messages_demo.dart
+            artifact: apple-messages-apk
+            filename: apple_messages.apk
+
+          - app_name: Apple Music
+            workdir: example
+            target: lib/apple_music/apple_music_demo.dart
+            artifact: apple-music-apk
+            filename: apple_music.apk
+
+          - app_name: Apple Podcasts
+            workdir: example
+            target: lib/apple_podcasts/apple_podcasts_demo.dart
+            artifact: apple-podcasts-apk
+            filename: apple_podcasts.apk
+
+          - app_name: Apple News
+            workdir: example
+            target: lib/apple_news/apple_news_demo.dart
+            artifact: apple-news-apk
+            filename: apple_news.apk
+
+          - app_name: Wanderlust
+            workdir: example/showcase
+            target: lib/main.dart
+            artifact: wanderlust-apk
+            filename: wanderlust.apk
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.41.0"
+          cache: true
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.workdir }}
+        run: flutter pub get
+
+      - name: Build release APK
+        working-directory: ${{ matrix.workdir }}
+        run: flutter build apk --release -t "${{ matrix.target }}"
+
+      - name: Prepare APK
+        run: |
+          mkdir -p dist
+          cp "${{ matrix.workdir }}/build/app/outputs/flutter-apk/app-release.apk" "dist/${{ matrix.filename }}"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.filename }}
+          if-no-files-found: error
+          retention-days: 7
