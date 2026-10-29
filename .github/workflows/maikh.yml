@@ -1,0 +1,70 @@
+name: Build All Flutter Demos
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Клонирование репозитория
+        uses: actions/checkout@v4
+
+      - name: Настройка Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Установка актуального Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Сборка всех демо-приложений из example
+        run: |
+          mkdir -p output_apks
+          cd example
+
+          if [ ! -d "android" ]; then
+            flutter create . --platforms=android
+          fi
+
+          flutter pub get
+
+          # Находим основные приложения (main, apple_music, apple_podcasts, apple_mail и др.)
+          # Исключаем мелкие технические тесты, если нужно собрать все файлы с void main — скрипт пройдет по ним
+          TARGETS=$(grep -rl "void main(" lib/)
+
+          for target in $TARGETS; do
+            # Формируем понятное имя файла из пути (например, apple_music_demo.apk)
+            name=$(basename "$target" .dart)
+            echo "========================================="
+            echo "Сборка: $target -> ${name}.apk"
+            echo "========================================="
+            
+            flutter build apk --release -t "$target"
+            cp build/app/outputs/flutter-apk/app-release.apk "../output_apks/${name}.apk"
+          done
+
+      - name: Сборка дополнительного приложения из example/showcase (если есть)
+        run: |
+          if [ -d "example/showcase" ] && [ -f "example/showcase/pubspec.yaml" ]; then
+            cd example/showcase
+            if [ ! -d "android" ]; then
+              flutter create . --platforms=android
+            fi
+            flutter pub get
+            flutter build apk --release
+            cp build/app/outputs/flutter-apk/app-release.apk "../../output_apks/showcase_wanderlust.apk"
+          fi
+
+      - name: Выгрузка архива со всеми APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-liquid-glass-apks
+          path: output_apks/*.apk
