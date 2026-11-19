@@ -1,0 +1,85 @@
+name: Build demos
+on: workflow_dispatch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - lib/main.dart
+          - lib/apple_music/apple_music_demo.dart
+          - lib/apple_podcasts/apple_podcasts_demo.dart
+          - lib/apple_news/apple_news_demo.dart
+          - lib/apple_messages/apple_messages_demo.dart
+          - lib/demos/glass_menu_demo.dart
+          - lib/demos/glass_tab_bar_scrollable_demo.dart
+          - lib/demos/minimizable_bar_demo.dart
+          - lib/demos/glass_modal_sheet_demo.dart
+          - lib/demos/glass_tab_bar_bottom_demo.dart
+          - lib/demos/bottom_bar_tab_width_demo.dart
+          - lib/demos/searchable_bar_demo.dart
+          - lib/demos/shape_debug_demo.dart
+          - lib/demos/quality_comparison_demo.dart
+          - lib/demos/nav_bar_patterns_demo.dart
+          - lib/demos/content_aware_brightness_demo.dart
+          - lib/demos/indicator_parity_demo.dart
+          - lib/demos/color_fidelity_demo.dart
+          - lib/demos/tab_bar_menu_demo.dart
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter --version
+      - name: Build APK
+        working-directory: example
+        run: |
+          flutter create --platforms=android .
+          cat >> android/app/build.gradle.kts <<'EOF'
+
+          android {
+              lint {
+                  checkReleaseBuilds = false
+                  abortOnError = false
+              }
+          }
+          EOF
+          flutter pub get
+          flutter build apk --release --target-platform android-arm64 -t ${{ matrix.target }}
+      - name: Rename
+        id: n
+        run: echo "name=$(basename ${{ matrix.target }} .dart)" >> $GITHUB_OUTPUT
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.n.outputs.name }}
+          path: example/build/app/outputs/flutter-apk/app-release.apk
+
+  wanderlust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Build APK
+        working-directory: example/showcase
+        run: |
+          flutter create --platforms=android .
+          flutter pub get
+          flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wanderlust
+          path: example/showcase/build/app/outputs/flutter-apk/app-release.apk
